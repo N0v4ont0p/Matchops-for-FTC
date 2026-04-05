@@ -77,6 +77,7 @@ const zh = {
       invalidTeamNumber: '战队编号必须为正整数。',
       teamNameRequired: '战队名称不能为空。',
       teamNumberExists: '该战队编号的工作区已存在。',
+      permissions: 'Firestore 规则阻止了工作区创建，请检查并重新部署规则。',
     },
   },
 

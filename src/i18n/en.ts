@@ -77,6 +77,7 @@ const en = {
       invalidTeamNumber: 'Team number must be a positive integer.',
       teamNameRequired: 'Team name is required.',
       teamNumberExists: 'A workspace for this team number already exists.',
+      permissions: 'Workspace creation is blocked by Firestore rules. Check and redeploy your rules.',
     },
   },
 

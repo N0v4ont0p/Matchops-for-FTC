@@ -34,6 +34,7 @@ import {
   type DocumentData,
   type QuerySnapshot,
 } from 'firebase/firestore'
+import { FirebaseError } from 'firebase/app'
 import { db } from '@/config/firebase'
 import type {
   WorkspaceTeam,
@@ -94,8 +95,17 @@ export async function createWorkspace(params: {
   language: SupportedLanguage
   ownerUid: string
 }): Promise<WorkspaceTeam> {
-  // Enforce uniqueness by team number
-  const existing = await getWorkspaceByTeamNumber(params.teamNumber)
+  // Enforce uniqueness by team number when the lookup is allowed by rules.
+  // Some deployments deny non-members from reading /teams, which would otherwise
+  // block onboarding before the create call can run.
+  let existing: WorkspaceTeam | null = null
+  try {
+    existing = await getWorkspaceByTeamNumber(params.teamNumber)
+  } catch (err) {
+    if (!(err instanceof FirebaseError && err.code === 'permission-denied')) {
+      throw err
+    }
+  }
   if (existing) throw new Error('workspace/team-number-exists')
 
   const docRef = doc(collection(db, 'teams'))
@@ -146,7 +156,7 @@ export async function upsertUserProfile(
 }
 
 export async function linkUserToWorkspace(uid: string, teamId: string): Promise<void> {
-  await upsertUserProfile(uid, { displayName: '', email: '', photoURL: null, teamId })
+  await setDoc(doc(db, 'users', uid), { teamId }, { merge: true })
 }
 
 export async function getWorkspaceMembers(teamId: string): Promise<WorkspaceMember[]> {

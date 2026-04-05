@@ -46,6 +46,8 @@ export default function OnboardingPage() {
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('team-number-exists')) {
         setApiError(t('onboarding.errors.teamNumberExists'))
+      } else if (msg.includes('permission-denied') || msg.includes('insufficient permissions')) {
+        setApiError(t('onboarding.errors.permissions'))
       } else {
         setApiError(t('auth.errors.generic'))
       }

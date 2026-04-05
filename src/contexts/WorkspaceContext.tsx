@@ -68,7 +68,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try {
       const ws = await createWorkspace({ ...params, ownerUid: user.uid })
       await linkUserToWorkspace(user.uid, ws.teamId)
-      setWorkspace(ws)
+      const linkedWorkspace = await getWorkspaceForUser(user.uid)
+      setWorkspace(linkedWorkspace ?? ws)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create workspace'
       setError(msg)
