@@ -1,0 +1,178 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #08090D;
+    color: #E8EAEF;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0F1117;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2A2D3E;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3A3D50;
+  }
+
+  ::selection {
+    background: rgba(79, 142, 247, 0.3);
+    color: #E8EAEF;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-2 rounded-xl border border-surface-border shadow-card;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:border-accent/30 hover:shadow-card-hover;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-2 focus:ring-offset-surface-base disabled:opacity-40 disabled:cursor-not-allowed select-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-bright active:bg-accent-dim shadow-sm;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-secondary hover:text-ink hover:bg-surface-3 active:bg-surface-4;
+  }
+
+  .btn-outline {
+    @apply btn border border-surface-border text-ink-secondary hover:border-accent/50 hover:text-ink hover:bg-accent-muted;
+  }
+
+  .btn-danger {
+    @apply btn bg-status-danger text-white hover:bg-red-500 active:bg-red-700 shadow-sm;
+  }
+
+  .input-field {
+    @apply w-full bg-surface-3 border border-surface-border rounded-lg px-3 py-2 text-sm text-ink placeholder-ink-muted
+    focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60
+    transition-all duration-150;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-ink-secondary uppercase tracking-wider mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-semibold uppercase tracking-wide;
+  }
+
+  .badge-accent {
+    @apply badge bg-accent-muted text-accent-bright border border-accent/20;
+  }
+
+  .badge-red {
+    @apply badge bg-alliance-red-dim text-alliance-red border border-alliance-red-border;
+  }
+
+  .badge-blue {
+    @apply badge bg-alliance-blue-dim text-alliance-blue border border-alliance-blue-border;
+  }
+
+  .badge-success {
+    @apply badge bg-status-success-dim text-status-success border border-status-success/20;
+  }
+
+  .badge-warning {
+    @apply badge bg-status-warning-dim text-status-warning border border-status-warning/20;
+  }
+
+  .badge-muted {
+    @apply badge bg-surface-3 text-ink-muted border border-surface-border;
+  }
+
+  .section-header {
+    @apply text-xs font-semibold uppercase tracking-widest text-ink-muted mb-3;
+  }
+
+  .mono {
+    @apply font-mono;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer select-none;
+  }
+
+  .nav-item-active {
+    @apply nav-item bg-accent-muted text-accent-bright border border-accent/20;
+  }
+
+  .nav-item-inactive {
+    @apply nav-item text-ink-secondary hover:text-ink hover:bg-surface-3;
+  }
+}
+
+@layer utilities {
+  .grid-bg {
+    background-image: linear-gradient(rgba(79,142,247,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,0.04) 50%,
+      rgba(255,255,255,0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
