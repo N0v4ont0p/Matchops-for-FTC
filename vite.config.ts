@@ -12,4 +12,7 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  preview: {
+    allowedHosts: ['matchops-for-ftc.onrender.com', 'matchops.org'],
+  },
 })
