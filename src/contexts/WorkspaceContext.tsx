@@ -68,8 +68,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try {
       const ws = await createWorkspace({ ...params, ownerUid: user.uid })
       await linkUserToWorkspace(user.uid, ws.teamId)
-      const linkedWorkspace = await getWorkspaceForUser(user.uid)
-      setWorkspace(linkedWorkspace ?? ws)
+      // Set optimistic local workspace immediately so route guards can proceed.
+      setWorkspace(ws)
+
+      // Refresh from Firestore as best effort; do not fail onboarding if this read
+      // is temporarily blocked or delayed by rules/propagation.
+      try {
+        const linkedWorkspace = await getWorkspaceForUser(user.uid)
+        if (linkedWorkspace) {
+          setWorkspace(linkedWorkspace)
+        }
+      } catch {
+        // Keep optimistic workspace and allow app entry.
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create workspace'
       setError(msg)

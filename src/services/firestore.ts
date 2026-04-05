@@ -80,13 +80,15 @@ export async function getWorkspaceByTeamNumber(
   const snap = await getDocs(q)
   if (snap.empty) return null
   const d = snap.docs[0]
-  return cleanDoc<WorkspaceTeam>(d.id, d.data())
+  const data = d.data() as Omit<WorkspaceTeam, 'teamId'>
+  return { ...data, teamId: d.id }
 }
 
 export async function getWorkspaceById(teamId: string): Promise<WorkspaceTeam | null> {
   const snap = await getDoc(doc(db, 'teams', teamId))
   if (!snap.exists()) return null
-  return cleanDoc<WorkspaceTeam>(snap.id, snap.data())
+  const data = snap.data() as Omit<WorkspaceTeam, 'teamId'>
+  return { ...data, teamId: snap.id }
 }
 
 export async function createWorkspace(params: {
