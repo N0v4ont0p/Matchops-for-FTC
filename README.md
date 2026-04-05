@@ -1,209 +1,164 @@
 # Matchops for FTC
 
-**Matchops** is a bilingual (English / 中文) competition operations platform for FIRST Tech Challenge (FTC) teams. It provides realtime collaborative scouting, pit issue tracking, battery management, and team notes — all in one dark tactical interface.
+Matchops is a bilingual competition operations platform for FIRST Tech Challenge teams.
+It is designed for fast, reliable match-day workflows: live scouting, strategy notes, pit triage, battery readiness, and team communication in one app.
 
----
+## Credit
 
-## Features
+This project is credited to FTC Team 19589 for team-level use and operations support.
 
-| Mode | Description |
-|------|-------------|
-| **Recon** | Live match scouting with realtime multi-device sync. Auto-detects your event & upcoming match via FTCScout. |
-| **Pit** | Track mechanical/electrical issues with priority levels and status lifecycle. |
-| **Batteries** | Monitor battery status (ready / charging / low / damaged) and voltage across your fleet. |
-| **Notes** | Team notes with tags, pinning, and fast search. |
-| **Settings** | Workspace identity, language switching, member overview, sign-out. |
+## What Matchops Does
 
----
+- Realtime recon entry collaboration across multiple devices
+- Event and match context resolution from FTCScout REST data
+- Shared strategy workspace for each match
+- Pit issue lifecycle tracking (open, in-progress, resolved)
+- Battery readiness and voltage tracking
+- Structured team notes with tags and pinning
+- English and Simplified Chinese UI
 
-## Tech Stack
+## Core Modes
 
-- **Frontend:** Vite 5 + React 18 + TypeScript 5
-- **Styling:** Tailwind CSS 3 with a fully custom dark design system
-- **Auth & Database:** Firebase 10 (Authentication + Firestore)
-- **API:** [FTCScout REST API](https://ftcscout.org/api/rest) — live event and match data
-- **i18n:** react-i18next (English + Simplified Chinese)
-- **Icons:** lucide-react
-- **Routing:** react-router-dom v6
+| Mode | Purpose |
+| --- | --- |
+| Recon | Main match workflow with current match context, alliance view, and collaborative scout entries |
+| Team Intel | Aggregated historical scouting insights by team |
+| Pit | Mechanical/electrical issue tracking with priority + status |
+| Batteries | Battery state management (`ready`, `charging`, `low`, `damaged`) |
+| Notes | Team knowledge base with tags, pinning, and quick access |
+| Settings | Workspace identity, language preference, account/session controls |
 
----
+## Architecture
 
-## Identity Model
+### Frontend
 
-- Every **workspace** is tied to a single FTC team number (immutable after creation).
-- The first user to create a workspace becomes the **owner**.
-- Any signed-in user who knows the workspace is automatically added as a member when they sign in (see `AuthContext`).
-- Team number and team name **cannot be changed** after workspace creation — this is enforced in both the UI and Firestore security rules.
+- React 18 + TypeScript + Vite 5
+- Tailwind CSS with a custom tactical dark theme
+- React Router v6 for route segmentation by mode
+- Context-based state layers for auth, workspace, and event context
 
----
+### Data and Auth
 
-## FTCScout Integration
+- Firebase Authentication (Google + Email/Password)
+- Firestore for all private team data
+- Team-scoped multi-tenant data model
+- Security rules in [firestore.rules](firestore.rules)
 
-Matchops uses the FTCScout REST API (`https://api.ftcscout.org/rest/v1`) to:
+### External Data
 
-1. **Auto-detect your active event** — finds ongoing/imminent/recently finished events for your team.
-2. **Identify the upcoming match** — scans unplayed matches to surface the next one.
-3. **Display alliance partners** — shows red/blue alliance composition for any match.
-4. **Browse events and matches** — manual overrides via the Event Selector and Match Selector modals.
+- FTCScout REST API: `https://api.ftcscout.org/rest/v1`
+- Read-only match/event/team structure and schedule data
+- No API key required
 
-No API key is required. All requests are read-only.
+## Identity and Workspace Rules
 
-**Season logic:** FTC seasons span two calendar years (e.g., season **2025** runs from August 2025 to April 2026). Matchops automatically computes the current season based on the current date.
+- One workspace maps to one FTC team identity
+- Team number and team name are immutable after creation
+- Owner is the creator of the workspace
+- Access to team data is restricted to authenticated team members
 
----
+## Recon Field Coverage
+
+Recon entries include:
+
+- Auto: scored, dropped, left-start-line, start position, pattern count
+- Teleop: near scored, far scored, dropped, pattern count
+- Endgame/other: park points, penalties, penalty notes, free-text notes
+- Metadata: match, team, alliance, scouter, timestamps
+
+## Internationalization
+
+- Supported languages: English (`en`), Simplified Chinese (`zh`)
+- Language preference persists in local storage key `matchops_lang`
+- Workspace language is synced to Firestore for team consistency
 
 ## Local Development
 
 ### Prerequisites
+
 - Node.js 18+
 - npm 9+
 
-### Setup
+### Install and Run
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_ORG/matchops-for-ftc.git
-cd "matchops-for-ftc"
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`.
+App default URL: `http://localhost:5173`
 
-### TypeScript type checking
+### Validate Types
 
 ```bash
-npm run typecheck
+npx tsc --noEmit
 ```
 
-### Production build
+### Build for Production
 
 ```bash
 npm run build
 ```
 
-Build output is placed in `dist/`.
+Build output: `dist/`
 
----
+## Deployment (Render)
 
-## Firebase Setup
+Create a Render Static Site with:
 
-The Firebase project config is **hardcoded** in [`src/config/firebase.ts`](src/config/firebase.ts). No environment variables are needed.
+- Build Command: `npm install && npm run build`
+- Publish Directory: `dist`
 
-### Firestore Indexes
+Firebase config is intentionally hardcoded in [src/config/firebase.ts](src/config/firebase.ts) per project requirements.
 
-You may need to create the following composite indexes in the Firebase console:
+## Recommended Firestore Composite Indexes
 
 | Collection path | Fields |
-|----------------|--------|
+| --- | --- |
 | `teams/{teamId}/events/{eventId}/matches/{matchId}/reconEntries` | `teamNumber ASC, createdAt DESC` |
 | `teams/{teamId}/pitIssues` | `status ASC, createdAt DESC` |
 | `teams/{teamId}/notes` | `pinned DESC, updatedAt DESC` |
 
-### Deploy Firestore Security Rules
+## Project Layout
 
-```bash
-firebase deploy --only firestore:rules
-```
-
----
-
-## Deployment on Render
-
-1. Push this repository to GitHub.
-2. In [Render](https://render.com), create a new **Static Site**.
-3. Connect your GitHub repository.
-4. Set build settings:
-   - **Build Command:** `npm install && npm run build`
-   - **Publish Directory:** `dist`
-5. No environment variables are required (Firebase config is hardcoded).
-6. Click **Deploy**.
-
-> Render will automatically re-deploy on every push to `main`.
-
----
-
-## Supported Languages
-
-| Code | Language |
-|------|----------|
-| `en` | English |
-| `zh` | Simplified Chinese (简体中文) |
-
-Language preference is persisted in `localStorage` under the key `matchops_lang` and synced to the user's workspace document in Firestore.
-
----
-
-## Recon Entry Fields
-
-Each scouted match entry captures:
-
-| Field | Description |
-|-------|-------------|
-| Auto Scored | Samples scored in auto |
-| Can Leave Start | Robot left starting zone in auto |
-| Auto Park | Parked in observation zone during auto |
-| Teleop Near Scored | Near basket/net scored in teleop |
-| Teleop Far Scored | Far basket/net scored in teleop |
-| Teleop Park | Parked during teleop end |
-| Park Points | End-game park points |
-| Notes | Free-form scouter notes |
-
----
-
-## Project Structure
-
-```
+```text
 src/
-├── App.tsx               # Root router + provider stack
-├── main.tsx              # Entry point
-├── index.css             # Tailwind + global component styles
-├── config/
-│   └── firebase.ts       # Firebase init (hardcoded config)
-├── types/
-│   └── index.ts          # All TypeScript interfaces
-├── i18n/
-│   ├── index.ts          # i18next init
-│   ├── en.ts             # English translations
-│   └── zh.ts             # Chinese translations
-├── services/
-│   ├── ftcscout.ts       # FTCScout REST client
-│   └── firestore.ts      # All Firestore data access
-├── contexts/
-│   ├── AuthContext.tsx
-│   ├── WorkspaceContext.tsx
-│   └── EventContext.tsx
-├── components/
-│   ├── ui/               # Button, Card, Badge, Modal, etc.
-│   ├── layout/           # AppShell, ReconTabBar
-│   └── recon/            # Match-specific panels and selectors
-├── pages/
-│   ├── LandingPage.tsx
-│   ├── SignInPage.tsx
-│   ├── OnboardingPage.tsx
-│   └── app/
-│       ├── ReconLayout.tsx
-│       ├── ReconDashboard.tsx
-│       ├── CurrentMatchWorkspace.tsx
-│       ├── MatchHistoryPage.tsx
-│       ├── TeamIntelPage.tsx
-│       ├── PitPage.tsx
-│       ├── BatteriesPage.tsx
-│       ├── NotesPage.tsx
-│       └── SettingsPage.tsx
-├── router/
-│   └── ProtectedRoute.tsx
-└── utils/
-    └── format.ts
-firestore.rules             # Firestore security rules
+    App.tsx
+    main.tsx
+    config/
+        firebase.ts
+    contexts/
+        AuthContext.tsx
+        WorkspaceContext.tsx
+        EventContext.tsx
+    services/
+        firestore.ts
+        ftcscout.ts
+    pages/
+        LandingPage.tsx
+        SignInPage.tsx
+        OnboardingPage.tsx
+        app/
+            ReconLayout.tsx
+            ReconDashboard.tsx
+            CurrentMatchWorkspace.tsx
+            MatchHistoryPage.tsx
+            TeamIntelPage.tsx
+            PitPage.tsx
+            BatteriesPage.tsx
+            NotesPage.tsx
+            SettingsPage.tsx
+    components/
+        layout/
+        recon/
+        ui/
+    i18n/
+    router/
+    types/
+    utils/
+firestore.rules
 ```
-
----
 
 ## License
 
-MIT © Matchops Contributors
+MIT
