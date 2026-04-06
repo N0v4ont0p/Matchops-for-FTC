@@ -50,7 +50,7 @@ export default function SignInPage() {
         await signInWithEmail(email, password)
       } else {
         if (!displayName.trim()) {
-          setError('Display name is required.')
+          setError(t('auth.errors.displayNameRequired'))
           setLoading(false)
           return
         }
@@ -143,11 +143,11 @@ export default function SignInPage() {
             <div className="space-y-3">
               {tab === 'signup' && (
                 <Input
-                  label="Display Name"
+                  label={t('auth.displayName')}
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder={t('auth.displayNamePlaceholder')}
                 />
               )}
               <Input

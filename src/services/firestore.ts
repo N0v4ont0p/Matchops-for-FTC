@@ -148,8 +148,21 @@ export async function getWorkspaceForUser(uid: string): Promise<WorkspaceTeam | 
   // For MVP, we store teamId on the user profile
   const userDoc = await getDoc(doc(db, 'users', uid))
   if (userDoc.exists() && userDoc.data()?.teamId) {
-    return getWorkspaceById(userDoc.data()!.teamId)
+    const workspace = await getWorkspaceById(userDoc.data()!.teamId)
+    if (workspace) {
+      return workspace
+    }
   }
+
+  // Fallback for older/inconsistent user docs: recover owned workspace directly.
+  const ownedWorkspaceQuery = query(collection(db, 'teams'), where('ownerUid', '==', uid))
+  const ownedWorkspaceSnap = await getDocs(ownedWorkspaceQuery)
+  if (!ownedWorkspaceSnap.empty) {
+    const teamDoc = ownedWorkspaceSnap.docs[0]
+    const data = teamDoc.data() as Omit<WorkspaceTeam, 'teamId'>
+    return { ...data, teamId: teamDoc.id }
+  }
+
   return null
 }
 

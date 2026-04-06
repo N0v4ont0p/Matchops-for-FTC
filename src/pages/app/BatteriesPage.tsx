@@ -11,13 +11,6 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 
-const STATUS_OPTIONS = [
-  { value: 'ready', label: 'Ready' },
-  { value: 'charging', label: 'Charging' },
-  { value: 'low', label: 'Low' },
-  { value: 'damaged', label: 'Damaged' },
-]
-
 function batteryIcon(status: BatteryType['status']) {
   if (status === 'ready') return <BatteryFull size={16} className="text-status-ok" />
   if (status === 'charging') return <BatteryMedium size={16} className="text-status-warn" />
@@ -94,6 +87,13 @@ export default function BatteriesPage() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
 
+  const statusOptions = [
+    { value: 'ready', label: t('batteries.statuses.ready') },
+    { value: 'charging', label: t('batteries.statuses.charging') },
+    { value: 'low', label: t('batteries.statuses.low') },
+    { value: 'damaged', label: t('batteries.statuses.damaged') },
+  ]
+
   useEffect(() => {
     if (!workspace) return
     const unsub = subscribeToBatteries(workspace.teamId, (data) => {
@@ -148,7 +148,7 @@ export default function BatteriesPage() {
         <div className="flex items-center gap-3">
           <Battery size={20} className="text-accent" />
           <h1 className="text-xl font-bold text-ink">{t('batteries.title')}</h1>
-          <Badge variant="success">{readyCount} {t('batteries.ready')}</Badge>
+          <Badge variant="success">{readyCount} {t('batteries.statuses.ready')}</Badge>
         </div>
         <Button size="sm" icon={<PlusCircle size={14} />} onClick={() => setModalOpen(true)}>
           {t('batteries.addBattery')}
@@ -188,7 +188,7 @@ export default function BatteriesPage() {
               <Select
                 value={b.status}
                 onChange={(e) => handleStatusChange(b, e.target.value)}
-                options={STATUS_OPTIONS}
+                options={statusOptions}
                 className="mt-auto"
               />
             </div>

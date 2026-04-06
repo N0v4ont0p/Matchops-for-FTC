@@ -38,9 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
+      setLoading(false)
       if (u) {
         // Sync user profile to Firestore
-        await upsertUserProfile(u.uid, {
+        void upsertUserProfile(u.uid, {
           displayName: u.displayName ?? '',
           email: u.email ?? '',
           photoURL: u.photoURL,
@@ -48,7 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Non-fatal
         })
       }
-      setLoading(false)
     })
     return unsub
   }, [])

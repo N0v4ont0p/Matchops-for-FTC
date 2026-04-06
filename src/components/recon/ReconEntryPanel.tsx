@@ -282,7 +282,7 @@ export default function ReconEntryPanel({ entries, seasonYear, eventCode, matchI
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-1 border-t border-surface-border bg-surface-1/50">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-3">
-                      <DataCell label={t('reconFields.autoLeftStartLine')} value={entry.autoLeftStartLine ? '✓ Yes' : '✗ No'} />
+                      <DataCell label={t('reconFields.autoLeftStartLine')} value={entry.autoLeftStartLine ? `✓ ${t('common.yes')}` : `✗ ${t('common.no')}`} />
                       <DataCell label={t('reconFields.autoStartPosition')} value={entry.autoStartPosition ?? '—'} />
                       <DataCell label={t('reconFields.autoScored')} value={entry.autoScored} />
                       <DataCell label={t('reconFields.autoDropped')} value={entry.autoDropped} />
@@ -349,15 +349,15 @@ export default function ReconEntryPanel({ entries, seasonYear, eventCode, matchI
                 type="number"
                 value={form.teamNumber}
                 onChange={(e) => setField('teamNumber', e.target.value)}
-                placeholder="e.g. 19859"
+                placeholder={t('reconFields.teamNumberPlaceholder')}
               />
               <Select
                 label={t('reconFields.allianceColor')}
                 value={form.allianceColor}
                 onChange={(e) => setField('allianceColor', e.target.value)}
                 options={[
-                  { value: 'Red', label: 'Red' },
-                  { value: 'Blue', label: 'Blue' },
+                  { value: 'Red', label: t('recon.allianceRed') },
+                  { value: 'Blue', label: t('recon.allianceBlue') },
                 ]}
               />
             </div>
@@ -438,7 +438,7 @@ export default function ReconEntryPanel({ entries, seasonYear, eventCode, matchI
               label={t('reconFields.penaltyNotes')}
               value={form.penaltyNotes}
               onChange={(e) => setField('penaltyNotes', e.target.value)}
-              placeholder="Describe...`"
+              placeholder={t('reconFields.penaltyNotesPlaceholder')}
               rows={2}
               wrapperClassName="mb-3"
             />
@@ -446,7 +446,7 @@ export default function ReconEntryPanel({ entries, seasonYear, eventCode, matchI
               label={t('reconFields.notes')}
               value={form.notes}
               onChange={(e) => setField('notes', e.target.value)}
-              placeholder="Notes..."
+              placeholder={t('reconFields.notesPlaceholder')}
               rows={3}
             />
           </section>

@@ -31,16 +31,21 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [workspace, setWorkspace] = useState<WorkspaceTeam | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
   const creatingRef = useRef(false)
 
   const load = useCallback(async () => {
+    if (authLoading) {
+      return
+    }
+
     if (!user) {
       setWorkspace(null)
+      setLoading(false)
       return
     }
 
@@ -60,7 +65,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (requestId !== loadRequestIdRef.current || creatingRef.current) return
       setLoading(false)
     }
-  }, [user?.uid])
+  }, [authLoading, user?.uid])
 
   useEffect(() => {
     load()
