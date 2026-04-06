@@ -22,6 +22,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  runTransaction,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -34,7 +35,6 @@ import {
   type DocumentData,
   type QuerySnapshot,
 } from 'firebase/firestore'
-import { FirebaseError } from 'firebase/app'
 import { db } from '@/config/firebase'
 import type {
   WorkspaceTeam,
@@ -97,34 +97,37 @@ export async function createWorkspace(params: {
   language: SupportedLanguage
   ownerUid: string
 }): Promise<WorkspaceTeam> {
-  // Enforce uniqueness by team number when the lookup is allowed by rules.
-  // Some deployments deny non-members from reading /teams, which would otherwise
-  // block onboarding before the create call can run.
-  let existing: WorkspaceTeam | null = null
-  try {
-    existing = await getWorkspaceByTeamNumber(params.teamNumber)
-  } catch (err) {
-    if (!(err instanceof FirebaseError && err.code === 'permission-denied')) {
-      throw err
-    }
-  }
-  if (existing) throw new Error('workspace/team-number-exists')
-
   const docRef = doc(collection(db, 'teams'))
+  const teamNumberRef = doc(db, 'teamNumbers', String(params.teamNumber))
+  const memberRef = doc(db, 'teams', docRef.id, 'members', params.ownerUid)
+  const userRef = doc(db, 'users', params.ownerUid)
+  const createdAt = new Date().toISOString()
   const data: Omit<WorkspaceTeam, 'teamId'> = {
     teamNumber: params.teamNumber,
     teamName: params.teamName,
     language: params.language,
     ownerUid: params.ownerUid,
-    createdAt: new Date().toISOString(),
+    createdAt,
   }
-  await setDoc(docRef, data)
 
-  // Add owner as member
-  await setDoc(doc(db, 'teams', docRef.id, 'members', params.ownerUid), {
-    uid: params.ownerUid,
-    role: 'owner',
-    joinedAt: new Date().toISOString(),
+  await runTransaction(db, async (tx) => {
+    const reservation = await tx.get(teamNumberRef)
+    if (reservation.exists()) {
+      throw new Error('workspace/team-number-exists')
+    }
+
+    tx.set(docRef, data)
+    tx.set(memberRef, {
+      uid: params.ownerUid,
+      role: 'owner',
+      joinedAt: createdAt,
+    })
+    tx.set(userRef, { teamId: docRef.id }, { merge: true })
+    tx.set(teamNumberRef, {
+      teamId: docRef.id,
+      ownerUid: params.ownerUid,
+      createdAt,
+    })
   })
 
   return { ...data, teamId: docRef.id }

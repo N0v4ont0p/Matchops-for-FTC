@@ -31,7 +31,7 @@ service cloud.firestore {
     // ─── Teams collection ─────────────────────────────────────────────────────
     match /teams/{teamId} {
       // Any team member can read workspace metadata
-      allow read: if isTeamMember(teamId);
+      allow read: if isTeamMember(teamId) || isTeamOwner(teamId);
 
       // Only authenticated users can create a new team (during onboarding)
       allow create: if isSignedIn() &&
@@ -49,7 +49,7 @@ service cloud.firestore {
       // ─── Members sub-collection ──────────────────────────────────────────
       match /members/{uid} {
         // Members can read member list
-        allow read: if isTeamMember(teamId);
+        allow read: if isTeamMember(teamId) || isTeamOwner(teamId);
         // Owner can manage members; users can create their own member entry
         allow create: if isTeamOwner(teamId) || isOwningUser(uid);
         allow update, delete: if isTeamOwner(teamId);
@@ -92,6 +92,16 @@ service cloud.firestore {
       match /notes/{noteId} {
         allow read, write: if isTeamMember(teamId);
       }
+    }
+
+    // ─── Team number reservation index ────────────────────────────────────────
+    // Used to enforce unique team numbers transactionally during workspace create.
+    match /teamNumbers/{teamNumber} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        !exists(/databases/$(database)/documents/teamNumbers/$(teamNumber)) &&
+        request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }

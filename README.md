@@ -56,6 +56,22 @@ This project is credited to FTC Team 19589 for team-level use and operations sup
 - Team number and team name are immutable after creation
 - Owner is the creator of the workspace
 - Access to team data is restricted to authenticated team members
+- Team number uniqueness is enforced server-side via `teamNumbers/{teamNumber}` reservation docs
+
+## Firestore Deployment Checklist
+
+After changing backend code or security rules, redeploy rules before testing onboarding:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+Then verify this creation flow in Firestore:
+
+- `teams/{teamId}` is created
+- `teams/{teamId}/members/{uid}` is created with role `owner`
+- `users/{uid}.teamId` is set to the new `teamId`
+- `teamNumbers/{teamNumber}` exists and points to that `teamId`
 
 ## Recon Field Coverage
 

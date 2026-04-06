@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   type ReactNode,
@@ -10,7 +11,6 @@ import { useAuth } from './AuthContext'
 import {
   getWorkspaceForUser,
   createWorkspace,
-  linkUserToWorkspace,
   updateWorkspaceLanguage,
 } from '@/services/firestore'
 import type { WorkspaceTeam, SupportedLanguage } from '@/types'
@@ -35,23 +35,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<WorkspaceTeam | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const loadRequestIdRef = useRef(0)
+  const creatingRef = useRef(false)
 
   const load = useCallback(async () => {
     if (!user) {
       setWorkspace(null)
       return
     }
+
+    const requestId = ++loadRequestIdRef.current
     setLoading(true)
     setError(null)
     try {
       const ws = await getWorkspaceForUser(user.uid)
+      // Ignore stale reads (e.g. StrictMode double effects or overlapping requests)
+      // and avoid overriding optimistic state during create flow.
+      if (requestId !== loadRequestIdRef.current || creatingRef.current) return
       setWorkspace(ws)
     } catch (err) {
+      if (requestId !== loadRequestIdRef.current) return
       setError(err instanceof Error ? err.message : 'Failed to load workspace')
     } finally {
+      if (requestId !== loadRequestIdRef.current || creatingRef.current) return
       setLoading(false)
     }
-  }, [user])
+  }, [user?.uid])
 
   useEffect(() => {
     load()
@@ -63,11 +72,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     language: SupportedLanguage
   }) => {
     if (!user) throw new Error('Not authenticated')
+
+    creatingRef.current = true
+    // Invalidate any in-flight load() started before creation.
+    loadRequestIdRef.current += 1
     setLoading(true)
     setError(null)
     try {
       const ws = await createWorkspace({ ...params, ownerUid: user.uid })
-      await linkUserToWorkspace(user.uid, ws.teamId)
       // Set optimistic local workspace immediately so route guards can proceed.
       setWorkspace(ws)
 
@@ -86,6 +98,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setError(msg)
       throw new Error(msg)
     } finally {
+      creatingRef.current = false
       setLoading(false)
     }
   }
