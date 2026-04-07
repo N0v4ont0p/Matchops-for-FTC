@@ -33,7 +33,13 @@ import {
   subscribeWorkspace,
   upsertUserProfile
 } from "./services/firestore";
-import { fetchUpcomingMatches, type UpcomingMatch } from "./services/ftcscout";
+import {
+  fetchEventContextGraphql,
+  lookupTeamByNumberRest,
+  type EventContext,
+  type TeamLookupResult,
+  type UpcomingMatch
+} from "./services/ftcscout";
 
 type AuthMode = "signin" | "signup";
 
@@ -58,9 +64,16 @@ export function App() {
   const [batteries, setBatteries] = useState<Battery[]>([]);
   const [notes, setNotes] = useState<TeamNote[]>([]);
 
+  const [season, setSeason] = useState(`${new Date().getFullYear() - 1}`);
   const [eventCode, setEventCode] = useState("");
+  const [eventContext, setEventContext] = useState<EventContext | null>(null);
   const [upcomingMatches, setUpcomingMatches] = useState<UpcomingMatch[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const [teamLookupNumber, setTeamLookupNumber] = useState("");
+  const [teamLookupResult, setTeamLookupResult] = useState<TeamLookupResult | null>(null);
+  const [teamLookupError, setTeamLookupError] = useState<string | null>(null);
 
   const tx = useMemo(() => (key: Parameters<typeof t>[1]) => t(language, key), [language]);
 
@@ -197,14 +210,47 @@ export function App() {
     if (!eventCode.trim()) {
       return;
     }
+    const parsedSeason = Number.parseInt(season, 10);
+    if (!Number.isFinite(parsedSeason)) {
+      setApiError(tx("apiError"));
+      return;
+    }
+
     setLoadingMatches(true);
+    setApiError(null);
     try {
-      const matches = await fetchUpcomingMatches(eventCode.trim());
-      setUpcomingMatches(matches);
+      const context = await fetchEventContextGraphql(parsedSeason, eventCode.trim().toUpperCase());
+      setEventContext(context);
+      setUpcomingMatches(context.upcomingMatches);
     } catch {
+      setEventContext(null);
       setUpcomingMatches([]);
+      setApiError(tx("apiError"));
     } finally {
       setLoadingMatches(false);
+    }
+  }
+
+  async function handleLookupTeam() {
+    const value = Number.parseInt(teamLookupNumber, 10);
+    if (!Number.isFinite(value)) {
+      setTeamLookupError(tx("teamNotFound"));
+      setTeamLookupResult(null);
+      return;
+    }
+
+    setTeamLookupError(null);
+    try {
+      const result = await lookupTeamByNumberRest(value);
+      if (!result) {
+        setTeamLookupResult(null);
+        setTeamLookupError(tx("teamNotFound"));
+        return;
+      }
+      setTeamLookupResult(result);
+    } catch {
+      setTeamLookupResult(null);
+      setTeamLookupError(tx("apiError"));
     }
   }
 
@@ -330,19 +376,55 @@ export function App() {
           <article className="panel">
             <h2>{tx("upcomingMatches")}</h2>
             <div className="inline-form">
+              <input placeholder={tx("season")} value={season} onChange={(e) => setSeason(e.target.value)} />
               <input placeholder={tx("eventCode")} value={eventCode} onChange={(e) => setEventCode(e.target.value)} />
               <button onClick={handleLoadEvent}>{tx("loadEvent")}</button>
             </div>
+            {apiError && <p className="error">{apiError}</p>}
+            {eventContext && (
+              <div className="feed-item">
+                <strong>{tx("eventInfo")}</strong>
+                <p>{eventContext.name} ({eventContext.code})</p>
+                <p>{eventContext.timezone}</p>
+              </div>
+            )}
             {loadingMatches && <p>{tx("loading")}</p>}
             {!loadingMatches && upcomingMatches.length === 0 && <p className="muted">{tx("noData")}</p>}
             {upcomingMatches.map((match) => (
               <div key={match.id} className="feed-item">
-                <strong>Q{match.number}</strong>
+                <strong>{match.description}</strong>
                 <p>Red: {match.red.join(", ") || "-"}</p>
                 <p>Blue: {match.blue.join(", ") || "-"}</p>
-                {match.startTime && <p>{new Date(match.startTime).toLocaleString()}</p>}
+                {match.scheduledStartTime && <p>{new Date(match.scheduledStartTime).toLocaleString()}</p>}
               </div>
             ))}
+
+            <h3>{tx("teamLookup")}</h3>
+            <div className="inline-form">
+              <input
+                placeholder={tx("teamNumber")}
+                value={teamLookupNumber}
+                onChange={(e) => setTeamLookupNumber(e.target.value)}
+              />
+              <button onClick={handleLookupTeam}>{tx("lookupTeam")}</button>
+            </div>
+            {teamLookupError && <p className="error">{teamLookupError}</p>}
+            {teamLookupResult && (
+              <div className="feed-item">
+                <strong>{teamLookupResult.number} · {teamLookupResult.name}</strong>
+                <p>{teamLookupResult.schoolName || "-"}</p>
+                <p>
+                  {[teamLookupResult.city, teamLookupResult.state, teamLookupResult.country]
+                    .filter(Boolean)
+                    .join(", ") || "-"}
+                </p>
+                {teamLookupResult.website && (
+                  <p>
+                    <a href={teamLookupResult.website} target="_blank" rel="noreferrer">{teamLookupResult.website}</a>
+                  </p>
+                )}
+              </div>
+            )}
           </article>
         </section>
       )}

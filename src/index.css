@@ -347,8 +347,17 @@ button.secondary {
 
 .inline-form {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.5rem;
+}
+
+.inline-form button {
+  min-width: 130px;
+}
+
+a {
+  color: #0f5fc2;
+  font-weight: 600;
 }
 
 .checkbox-row {
