@@ -58,6 +58,9 @@ export function App() {
 
   const [teamName, setTeamName] = useState("");
   const [teamCode, setTeamCode] = useState("");
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [joiningWorkspace, setJoiningWorkspace] = useState(false);
 
   const [reconEntries, setReconEntries] = useState<ReconEntry[]>([]);
   const [pitIssues, setPitIssues] = useState<PitIssue[]>([]);
@@ -163,37 +166,57 @@ export function App() {
     if (!user || !teamName.trim() || !teamCode.trim()) {
       return;
     }
-    const created = await createWorkspace(teamName.trim(), teamCode.trim(), user.uid);
-    const nextProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email ?? "",
-      displayName: profile?.displayName || displayName || "Team Member",
-      workspaceId: created.id,
-      language,
-      updatedAt: Date.now()
-    };
-    await upsertUserProfile(nextProfile);
-    setProfile(nextProfile);
+    setWorkspaceError(null);
+    setCreatingWorkspace(true);
+    try {
+      const created = await createWorkspace(teamName.trim(), teamCode.trim(), user.uid);
+      const nextProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email ?? "",
+        displayName: profile?.displayName || displayName || "Team Member",
+        workspaceId: created.id,
+        language,
+        updatedAt: Date.now()
+      };
+      await upsertUserProfile(nextProfile);
+      setProfile(nextProfile);
+    } catch (error) {
+      const message = error instanceof Error && error.message === "TEAM_CODE_TAKEN"
+        ? tx("teamCodeTaken")
+        : tx("workspaceError");
+      setWorkspaceError(message);
+    } finally {
+      setCreatingWorkspace(false);
+    }
   }
 
   async function handleJoinWorkspace() {
     if (!user || !teamCode.trim()) {
       return;
     }
-    const found = await joinWorkspace(teamCode.trim(), user.uid);
-    if (!found) {
-      return;
+    setWorkspaceError(null);
+    setJoiningWorkspace(true);
+    try {
+      const found = await joinWorkspace(teamCode.trim(), user.uid);
+      if (!found) {
+        setWorkspaceError(tx("joinNotFound"));
+        return;
+      }
+      const nextProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email ?? "",
+        displayName: profile?.displayName || displayName || "Team Member",
+        workspaceId: found.id,
+        language,
+        updatedAt: Date.now()
+      };
+      await upsertUserProfile(nextProfile);
+      setProfile(nextProfile);
+    } catch {
+      setWorkspaceError(tx("workspaceError"));
+    } finally {
+      setJoiningWorkspace(false);
     }
-    const nextProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email ?? "",
-      displayName: profile?.displayName || displayName || "Team Member",
-      workspaceId: found.id,
-      language,
-      updatedAt: Date.now()
-    };
-    await upsertUserProfile(nextProfile);
-    setProfile(nextProfile);
   }
 
   async function handleLanguageChange(next: Language) {
@@ -303,23 +326,28 @@ export function App() {
   if (!profile?.workspaceId || !workspace) {
     return (
       <main className="page onboard-page">
-        <section className="panel">
+        <section className="panel onboard-panel">
           <h1>{tx("onboarding")}</h1>
           <p>{tx("workspaceRequired")}</p>
           <p className="muted">{tx("dataIsolated")}</p>
+          {workspaceError && <p className="error">{workspaceError}</p>}
 
           <div className="grid-2">
             <div>
               <h3>{tx("createWorkspace")}</h3>
               <input placeholder={tx("teamName")} value={teamName} onChange={(e) => setTeamName(e.target.value)} />
               <input placeholder={tx("teamCode")} value={teamCode} onChange={(e) => setTeamCode(e.target.value)} />
-              <button onClick={handleCreateWorkspace}>{tx("createWorkspace")}</button>
+              <button onClick={handleCreateWorkspace} disabled={creatingWorkspace || joiningWorkspace}>
+                {creatingWorkspace ? tx("createWorkspaceLoading") : tx("createWorkspace")}
+              </button>
             </div>
 
             <div>
               <h3>{tx("joinWorkspace")}</h3>
               <input placeholder={tx("teamCode")} value={teamCode} onChange={(e) => setTeamCode(e.target.value)} />
-              <button onClick={handleJoinWorkspace}>{tx("joinWorkspace")}</button>
+              <button onClick={handleJoinWorkspace} disabled={creatingWorkspace || joiningWorkspace}>
+                {joiningWorkspace ? tx("joinWorkspaceLoading") : tx("joinWorkspace")}
+              </button>
             </div>
           </div>
         </section>
@@ -329,34 +357,51 @@ export function App() {
 
   return (
     <main className="page app-page">
-      <header className="topbar">
-        <div>
-          <h1>{workspace.teamName}</h1>
-          <p>{workspace.teamCode} · {tx("workspaceMembers")}: {workspace.members.length}</p>
-        </div>
+      <div className="app-grid">
+        <aside className="panel side-rail">
+          <div className="brand-block">
+            <h1>Matchops</h1>
+            <p>{workspace.teamName}</p>
+            <p className="muted">{workspace.teamCode}</p>
+          </div>
 
-        <div className="topbar-actions">
-          <label>
-            {tx("language")}
-            <select value={language} onChange={(e) => handleLanguageChange(e.target.value as Language)}>
-              <option value="en">English</option>
-              <option value="zh">简体中文</option>
-            </select>
-          </label>
-          <button className="secondary" onClick={() => signOut(auth)}>{tx("signOut")}</button>
-        </div>
-      </header>
+          <nav className="tabs rail-tabs">
+            {(["recon", "pit", "batteries", "notes"] as AppTab[]).map((item) => (
+              <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>
+                {tx(item)}
+              </button>
+            ))}
+          </nav>
 
-      <nav className="tabs">
-        {(["recon", "pit", "batteries", "notes"] as AppTab[]).map((item) => (
-          <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>
-            {tx(item)}
-          </button>
-        ))}
-      </nav>
+          <div className="rail-stats">
+            <div className="mini-stat"><span>{tx("workspaceMembers")}</span><strong>{workspace.members.length}</strong></div>
+            <div className="mini-stat"><span>{tx("pit")}</span><strong>{pitIssues.length}</strong></div>
+            <div className="mini-stat"><span>{tx("batteries")}</span><strong>{batteries.length}</strong></div>
+            <div className="mini-stat"><span>{tx("notes")}</span><strong>{notes.length}</strong></div>
+          </div>
 
-      {tab === "recon" && (
-        <section className="content-grid">
+          <div className="rail-controls">
+            <label>
+              {tx("language")}
+              <select value={language} onChange={(e) => handleLanguageChange(e.target.value as Language)}>
+                <option value="en">English</option>
+                <option value="zh">简体中文</option>
+              </select>
+            </label>
+            <button className="secondary" onClick={() => signOut(auth)}>{tx("signOut")}</button>
+          </div>
+        </aside>
+
+        <section className="workspace-main">
+          <header className="topbar">
+            <div>
+              <h1>{tx(tab)}</h1>
+              <p>{tx("appTagline")}</p>
+            </div>
+          </header>
+
+          {tab === "recon" && (
+            <section className="content-grid">
           <article className="panel">
             <h2>{tx("recon")}</h2>
             <ReconForm workspaceId={workspace.id} language={language} currentUser={profile.displayName} />
@@ -426,62 +471,64 @@ export function App() {
               </div>
             )}
           </article>
-        </section>
-      )}
+            </section>
+          )}
 
-      {tab === "pit" && (
-        <section className="panel">
-          <h2>{tx("pit")}</h2>
-          <PitForm workspaceId={workspace.id} language={language} />
-          <div className="feed">
-            {pitIssues.length === 0 && <p className="muted">{tx("noData")}</p>}
-            {pitIssues.map((issue) => (
-              <div key={issue.id} className="feed-item">
-                <strong>{issue.title}</strong>
-                <p>{issue.description}</p>
-                <p>{tx("issueStatus")}: {tx(issue.status === "in_progress" ? "inProgress" : issue.status)}</p>
+          {tab === "pit" && (
+            <section className="panel">
+              <h2>{tx("pit")}</h2>
+              <PitForm workspaceId={workspace.id} language={language} />
+              <div className="feed">
+                {pitIssues.length === 0 && <p className="muted">{tx("noData")}</p>}
+                {pitIssues.map((issue) => (
+                  <div key={issue.id} className="feed-item">
+                    <strong>{issue.title}</strong>
+                    <p>{issue.description}</p>
+                    <p>{tx("issueStatus")}: {tx(issue.status === "in_progress" ? "inProgress" : issue.status)}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+            </section>
+          )}
 
-      {tab === "batteries" && (
-        <section className="panel">
-          <h2>{tx("batteries")}</h2>
-          <BatteryForm workspaceId={workspace.id} language={language} />
-          <div className="feed">
-            {batteries.length === 0 && <p className="muted">{tx("noData")}</p>}
-            {batteries.map((battery) => (
-              <div key={battery.id} className="feed-item">
-                <strong>{battery.label}</strong>
-                <p>{tx("batteryStatus")}: {tx(battery.status)}</p>
-                <p>{battery.notes || "-"}</p>
+          {tab === "batteries" && (
+            <section className="panel">
+              <h2>{tx("batteries")}</h2>
+              <BatteryForm workspaceId={workspace.id} language={language} />
+              <div className="feed">
+                {batteries.length === 0 && <p className="muted">{tx("noData")}</p>}
+                {batteries.map((battery) => (
+                  <div key={battery.id} className="feed-item">
+                    <strong>{battery.label}</strong>
+                    <p>{tx("batteryStatus")}: {tx(battery.status)}</p>
+                    <p>{battery.notes || "-"}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+            </section>
+          )}
 
-      {tab === "notes" && (
-        <section className="panel">
-          <h2>{tx("notes")}</h2>
-          <NotesForm workspaceId={workspace.id} language={language} />
-          <div className="feed">
-            {notes.length === 0 && <p className="muted">{tx("noData")}</p>}
-            {notes
-              .slice()
-              .sort((a, b) => Number(b.pinned) - Number(a.pinned))
-              .map((note) => (
-                <div key={note.id} className="feed-item">
-                  <strong>{note.pinned ? "[PINNED] " : ""}{note.title}</strong>
-                  <p>{note.content}</p>
-                  <p>{note.tags.map((tag) => `#${tag}`).join(" ")}</p>
-                </div>
-              ))}
-          </div>
+          {tab === "notes" && (
+            <section className="panel">
+              <h2>{tx("notes")}</h2>
+              <NotesForm workspaceId={workspace.id} language={language} />
+              <div className="feed">
+                {notes.length === 0 && <p className="muted">{tx("noData")}</p>}
+                {notes
+                  .slice()
+                  .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+                  .map((note) => (
+                    <div key={note.id} className="feed-item">
+                      <strong>{note.pinned ? "[PINNED] " : ""}{note.title}</strong>
+                      <p>{note.content}</p>
+                      <p>{note.tags.map((tag) => `#${tag}`).join(" ")}</p>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )}
         </section>
-      )}
+      </div>
     </main>
   );
 }

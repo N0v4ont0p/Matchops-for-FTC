@@ -1,10 +1,10 @@
 import {
   addDoc,
   arrayUnion,
+  writeBatch,
   collection,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -24,28 +24,57 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 export async function createWorkspace(teamName: string, teamCode: string, uid: string): Promise<Workspace> {
+  const normalizedCode = teamCode.trim().toUpperCase();
+  const teamCodeRef = doc(db, "workspaceCodes", normalizedCode);
+  const existingCode = await getDoc(teamCodeRef);
+  if (existingCode.exists()) {
+    throw new Error("TEAM_CODE_TAKEN");
+  }
+
   const createdAt = Date.now();
-  const ref = await addDoc(collection(db, "workspaces"), {
+  const workspaceRef = doc(collection(db, "workspaces"));
+
+  const batch = writeBatch(db);
+  batch.set(workspaceRef, {
     teamName,
-    teamCode,
+    teamCode: normalizedCode,
     createdBy: uid,
     members: [uid],
     createdAt
   });
-  return { id: ref.id, teamName, teamCode, createdBy: uid, members: [uid], createdAt };
+
+  batch.set(teamCodeRef, {
+    workspaceId: workspaceRef.id,
+    teamName,
+    createdBy: uid,
+    createdAt
+  });
+
+  await batch.commit();
+
+  return { id: workspaceRef.id, teamName, teamCode: normalizedCode, createdBy: uid, members: [uid], createdAt };
 }
 
 export async function joinWorkspace(teamCode: string, uid: string): Promise<Workspace | null> {
-  const snapshots = await getDocs(collection(db, "workspaces"));
-  const match = snapshots.docs.find((docSnap) => docSnap.data().teamCode === teamCode);
-  if (!match) {
+  const normalizedCode = teamCode.trim().toUpperCase();
+  const teamCodeSnapshot = await getDoc(doc(db, "workspaceCodes", normalizedCode));
+  if (!teamCodeSnapshot.exists()) {
     return null;
   }
-  await updateDoc(doc(db, "workspaces", match.id), {
+
+  const workspaceId = (teamCodeSnapshot.data() as { workspaceId: string }).workspaceId;
+
+  await updateDoc(doc(db, "workspaces", workspaceId), {
     members: arrayUnion(uid)
   });
-  const data = match.data() as Omit<Workspace, "id">;
-  return { id: match.id, ...data, members: [...new Set([...(data.members ?? []), uid])] };
+
+  const workspaceSnapshot = await getDoc(doc(db, "workspaces", workspaceId));
+  if (!workspaceSnapshot.exists()) {
+    return null;
+  }
+
+  const data = workspaceSnapshot.data() as Omit<Workspace, "id">;
+  return { id: workspaceSnapshot.id, ...data, members: [...new Set([...(data.members ?? []), uid])] };
 }
 
 export function subscribeWorkspace(

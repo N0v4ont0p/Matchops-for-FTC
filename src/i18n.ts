@@ -67,6 +67,12 @@ const en: Dict = {
   onboarding: "Workspace onboarding",
   teamVisibility: "Team member visibility",
   sessionControls: "Session controls"
+  ,
+  workspaceError: "Workspace action failed. Please try again.",
+  teamCodeTaken: "Team code already exists. Pick another code.",
+  joinNotFound: "Team code not found.",
+  createWorkspaceLoading: "Creating workspace...",
+  joinWorkspaceLoading: "Joining workspace..."
 };
 
 const zh: Dict = {
@@ -134,6 +140,12 @@ const zh: Dict = {
   onboarding: "工作区引导",
   teamVisibility: "成员可见性",
   sessionControls: "会话控制"
+  ,
+  workspaceError: "工作区操作失败，请重试。",
+  teamCodeTaken: "该队伍代码已存在，请更换。",
+  joinNotFound: "未找到该队伍代码。",
+  createWorkspaceLoading: "正在创建工作区...",
+  joinWorkspaceLoading: "正在加入工作区..."
 };
 
 const translations: Record<Language, Dict> = { en, zh };
