@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: matchops-for-ftc
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run render-start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyBZy64l5uAnNhlu0tzhFwlLw43T0yCoEHQ
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: matchops.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: matchops
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: matchops.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: 818730128250
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:818730128250:web:ab59b9bbbd843e7022bcc3
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-J77DSCREQ3
+      - key: VITE_FTCSCOUT_BASE_URL
+        value: https://api.ftcscout.org/rest/v1

@@ -1,107 +1,27 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ─── Helper functions ────────────────────────────────────────────────────
-    function isSignedIn() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isTeamMember(teamId) {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
+    function inWorkspace(workspaceId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/workspaces/$(workspaceId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.members;
     }
 
-    function isTeamOwner(teamId) {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUid == request.auth.uid;
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
-    function isOwningUser(uid) {
-      return isSignedIn() && request.auth.uid == uid;
-    }
+    match /workspaces/{workspaceId} {
+      allow create: if signedIn();
+      allow read, update: if inWorkspace(workspaceId);
 
-    // ─── Users collection ────────────────────────────────────────────────────
-    // Users can only read/write their own user document
-    match /users/{uid} {
-      allow read, write: if isOwningUser(uid);
-    }
-
-    // ─── Teams collection ─────────────────────────────────────────────────────
-    match /teams/{teamId} {
-      // Any team member can read workspace metadata
-      allow read: if isTeamMember(teamId) || isTeamOwner(teamId);
-
-      // Only authenticated users can create a new team (during onboarding)
-      allow create: if isSignedIn() &&
-        request.resource.data.ownerUid == request.auth.uid;
-
-      // Only the owner can update metadata, BUT teamNumber and teamName are immutable
-      allow update: if isTeamOwner(teamId) &&
-        request.resource.data.teamNumber == resource.data.teamNumber &&
-        request.resource.data.teamName == resource.data.teamName &&
-        request.resource.data.ownerUid == resource.data.ownerUid;
-
-      // Owner can delete the workspace
-      allow delete: if isTeamOwner(teamId);
-
-      // ─── Members sub-collection ──────────────────────────────────────────
-      match /members/{uid} {
-        // Members can read member list
-        allow read: if isTeamMember(teamId) || isTeamOwner(teamId);
-        // Owner can manage members; users can create their own member entry
-        allow create: if isTeamOwner(teamId) || isOwningUser(uid);
-        allow update, delete: if isTeamOwner(teamId);
+      match /{document=**} {
+        allow read, write: if inWorkspace(workspaceId);
       }
-
-      // ─── Events sub-collection ───────────────────────────────────────────
-      match /events/{eventId} {
-        allow read, write: if isTeamMember(teamId);
-
-        // ─── Matches sub-collection ────────────────────────────────────────
-        match /matches/{matchId} {
-          allow read, write: if isTeamMember(teamId);
-
-          // ─── Recon entries ────────────────────────────────────────────────
-          match /reconEntries/{entryId} {
-            allow read: if isTeamMember(teamId);
-            allow create: if isTeamMember(teamId) &&
-              request.resource.data.addedByUid == request.auth.uid;
-            allow update, delete: if isTeamMember(teamId);
-          }
-
-          // ─── Strategy ─────────────────────────────────────────────────────
-          match /strategy/{strategyId} {
-            allow read, write: if isTeamMember(teamId);
-          }
-        }
-      }
-
-      // ─── Pit issues sub-collection ───────────────────────────────────────
-      match /pitIssues/{issueId} {
-        allow read, write: if isTeamMember(teamId);
-      }
-
-      // ─── Batteries sub-collection ────────────────────────────────────────
-      match /batteries/{batteryId} {
-        allow read, write: if isTeamMember(teamId);
-      }
-
-      // ─── Notes sub-collection ─────────────────────────────────────────────
-      match /notes/{noteId} {
-        allow read, write: if isTeamMember(teamId);
-      }
-    }
-
-    // ─── Team number reservation index ────────────────────────────────────────
-    // Used to enforce unique team numbers transactionally during workspace create.
-    match /teamNumbers/{teamNumber} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() &&
-        !exists(/databases/$(database)/documents/teamNumbers/$(teamNumber)) &&
-        request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if false;
     }
   }
 }
